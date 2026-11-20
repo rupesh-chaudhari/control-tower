@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Supply Chain Control Tower — Live Wall</title>
+<title>Supply Chain Command Centre · Plan to Shelf</title>
 <style>
 :root{
   --bg:#060b18;--bg2:#0b1426;--panel:rgba(18,30,56,.72);--line:rgba(120,160,255,.14);
@@ -77,7 +77,8 @@ body{background:radial-gradient(1200px 700px at 15% -10%,rgba(56,189,248,.14),tr
 .legend{display:flex;gap:16px;font-size:12px;color:var(--mut);margin-top:6px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 /* sales */
-.ssum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:6px}
+.ssum{display:grid;grid-template-columns:1fr 1fr .8fr 1.35fr;gap:10px;margin-bottom:6px}
+.ssum b{white-space:nowrap;font-size:21px}.ssum b small{font-size:13px;font-weight:500;color:var(--mut)}
 .regs{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:4px}
 .rg{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:10px;padding:5px 8px}
 .rg .t{display:flex;justify-content:space-between;gap:6px;font-size:12.5px}
@@ -121,7 +122,7 @@ svg text{font-family:inherit}
   <header class="hdr">
     <div class="brand">
       <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#061020" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div>
-      <div><h1>End-to-End Supply Chain Control Tower</h1><p>Plan · Source · Make · Store · Move · Sell — leadership wall view</p></div>
+      <div><h1>Supply Chain Command Centre <span style="font-weight:800;color:var(--cyan)">· Plan to Shelf</span></h1><p>One live view of demand, supply and delivery — see early, decide fast, deliver every order</p></div>
     </div>
     <div class="hright">
       <span class="badge" id="dataBadge">SAMPLE DATA</span>
@@ -142,7 +143,7 @@ svg text{font-family:inherit}
       <div id="vrows"></div>
     </div>
     <div class="panel" style="--accent:var(--green)">
-      <div class="ph"><h2>💰 Plan vs actual sales — <span id="smon">month to date</span></h2><small>Lakh cases</small></div>
+      <div class="ph"><h2>💰 Sales: plan vs actual · <span id="smon">MTD</span></h2><div class="tabs" id="sview"><span class="tab on" data-v="inr">₹ Crore</span><span class="tab" data-v="cs">Lakh cases</span></div></div>
       <div class="ssum" id="ssum"></div>
       <svg id="sales" style="width:100%;height:178px"></svg>
       <div class="regs" id="regs"></div>
@@ -186,7 +187,7 @@ svg text{font-family:inherit}
    dataUrl: leave empty to run on built-in SAMPLE data.
    To go live, point it at a JSON endpoint (e.g. a Fabric / Azure SQL API, Power Automate
    HTTP flow, or a file on a shared server) that returns the same shape as SAMPLE below. */
-const CONFIG = { dataUrl: '', refreshSec: 60, trendRotateSec: 12, pauseAfterClickSec: 60 };
+const CONFIG = { dataUrl: '', refreshSec: 60, trendRotateSec: 12, pauseAfterClickSec: 60, salesViewSec: 30 };
 
 const TARGETS = {
   sales_ach:{label:'Sales vs plan',short:'Sales',unit:'%',dir:'up',t:100},
@@ -214,13 +215,15 @@ const SAMPLE = {
     space_util:[78,79,81,83,82,84,86,85,87,86,84,85,86],
     freight_per_case:[19.9,18.65,19.4,20.1,19.6,20.8,19.2,18.9,20.4,21.0,20.1,19.8,20.35]
   },
-  sales:{ // month to date, lakh cases (Nov)
+  sales:{ // month to date: value in ₹ crore, volume in lakh cases (Nov)
     month:'Nov 2026', daysInMonth:30, asOfDay:13, monthPlan:52.0,
     dailyPlan:[1.45,1.6,1.7,1.72,1.75,1.8,1.55,1.5,1.7,1.75,1.78,1.8,1.85,1.65,1.6,1.75,1.8,1.82,1.85,1.9,1.7,1.65,1.8,1.85,1.88,1.9,1.95,2.0,1.95,1.83],
     dailyActual:[1.38,1.52,1.71,1.6,1.66,1.74,1.41,1.39,1.62,1.58,1.7,1.69,1.72],
-    regions:[
-      {region:'North',plan:5.62,actual:5.48},{region:'South',plan:5.30,actual:5.41},
-      {region:'West',plan:4.70,actual:4.22},{region:'East',plan:3.40,actual:2.91},{region:'Central',plan:2.65,actual:2.70}]
+    // same plan & actual in lakh cases (view toggles every 30 s)
+    monthPlanCs:40.0,
+    dailyPlanCs:[1.115, 1.231, 1.308, 1.323, 1.346, 1.385, 1.192, 1.154, 1.308, 1.346, 1.369, 1.385, 1.423, 1.269, 1.231, 1.346, 1.385, 1.4, 1.423, 1.462, 1.308, 1.269, 1.385, 1.423, 1.446, 1.462, 1.5, 1.538, 1.5, 1.408],
+    dailyActualCs:[1.083, 1.158, 1.329, 1.206, 1.315, 1.338, 1.052, 1.08, 1.271, 1.203, 1.308, 1.339, 1.297],
+    regions:[{region:'North',plan:5.62,actual:5.48,plan_cs:4.39,actual_cs:4.28},{region:'South',plan:5.3,actual:5.41,plan_cs:3.98,actual_cs:4.07},{region:'West',plan:4.7,actual:4.22,plan_cs:3.64,actual_cs:3.27},{region:'East',plan:3.4,actual:2.91,plan_cs:2.6,actual_cs:2.24},{region:'Central',plan:2.65,actual:2.7,plan_cs:2.09,actual_cs:2.13}]
   },
   vehicles:[ // today, by CFA lane
     {cfa:'Gurgaon',indent:42,placed:40,intransit:31,delayed:2},
@@ -257,7 +260,7 @@ const SAMPLE = {
     {sev:'Critical',stage:'Store',node:'Bhiwandi CFA',issue:'Space at 94% and 5.4k cases near expiry',impact:5420,owner:'Zonal planner West',age:6,next:'Liquidate via MT promo; hold inbound'},
     {sev:'High',stage:'Source',node:'PM supplier – Tetra',issue:'Packaging delivery 5 days late; Kolkata at risk',impact:18000,owner:'Procurement',age:3,next:'Air-freight 2 days of PM'},
     {sev:'High',stage:'Move',node:'Kolkata CFA',issue:'Placement 81%; 5 vehicles delayed > 24 h',impact:7400,owner:'Transport desk',age:1,next:'Activate standby transporter'},
-    {sev:'High',stage:'Sell',node:'East region sales',issue:'MTD sales 85.6% of plan; 0.49 lakh cases short',impact:49000,owner:'Regional sales + planning',age:5,next:'Re-phase allocation; push GT schemes'},
+    {sev:'High',stage:'Sell',node:'East region sales',issue:'MTD sales 85.6% of plan; ₹0.49 Cr short',impact:49000,owner:'Regional sales + planning',age:5,next:'Re-phase allocation; push GT schemes'},
     {sev:'High',stage:'Sell',node:'Modern Trade – East',issue:'Key account fill rate 86% for 2 weeks',impact:7400,owner:'Account planner',age:9,next:'Ring-fence allocation'},
     {sev:'Medium',stage:'Move',node:'Haridwar → Gurgaon',issue:'Truck fill 78%; part loads on 3 dispatches',impact:0,owner:'Logistics',age:5,next:'Club with Lucknow loads'},
     {sev:'Medium',stage:'Plan',node:'Aamras 250 ml',issue:'Forecast bias +22% for 4 weeks',impact:11000,owner:'Demand planning',age:12,next:'Re-baseline in S&OP'}
@@ -322,18 +325,23 @@ function drawVehicles(){
 }
 
 /* ---------- Plan vs actual sales ---------- */
+let salesView='inr', salesPausedUntil=0;
 function drawSales(){
-  const S=DATA.sales, n=S.asOfDay, cumP=[],cumA=[]; let a=0,b=0;
+  const S0=DATA.sales, cs=salesView==='cs', n=S0.asOfDay, cumP=[],cumA=[]; let a=0,b=0;
+  const S={...S0, dailyPlan:cs?S0.dailyPlanCs:S0.dailyPlan, dailyActual:cs?S0.dailyActualCs:S0.dailyActual, monthPlan:cs?S0.monthPlanCs:S0.monthPlan,
+    regions:S0.regions.map(r=>({region:r.region,plan:cs?r.plan_cs:r.plan,actual:cs?r.actual_cs:r.actual}))};
+  const pre=cs?'':'₹', suf=cs?'<small> L cs</small>':'<small> Cr</small>', sufT=cs?' L cs':' Cr';
+  document.querySelectorAll('#sview .tab').forEach(t=>t.classList.toggle('on',t.dataset.v===salesView));
   S.dailyPlan.forEach((v,i)=>{a+=v;cumP.push(a);}); S.dailyActual.slice(0,n).forEach(v=>{b+=v;cumA.push(b);});
   const planMTD=cumP[n-1], actMTD=cumA[n-1], ach=actMTD/planMTD*100, proj=actMTD/n*S.daysInMonth, projAch=proj/S.monthPlan*100;
   const c=ach>=100?'var(--green)':ach>=95?'var(--amber)':'var(--red)', pc=projAch>=100?'var(--green)':projAch>=95?'var(--amber)':'var(--red)';
-  $('#smon').textContent=S.month+' · day '+n+' of '+S.daysInMonth;
-  $('#ssum').innerHTML=[['Plan MTD',planMTD.toFixed(2),''],['Actual MTD',actMTD.toFixed(2),''],['Achievement',f1(ach)+'%',c],['Month-end run-rate',proj.toFixed(1)+' / '+S.monthPlan.toFixed(1),pc]]
+  $('#smon').textContent=S.month.split(' ')[0]+' day '+n+'/'+S.daysInMonth;
+  $('#ssum').innerHTML=[['Plan MTD',pre+planMTD.toFixed(2)+suf,''],['Actual MTD',pre+actMTD.toFixed(2)+suf,''],['Achievement',f1(ach)+'%',c],['Month-end run-rate',pre+proj.toFixed(1)+' / '+S.monthPlan.toFixed(1)+suf,pc]]
     .map(([l,x,cc])=>`<div class="vs"><b class="num" style="${cc?'color:'+cc:''}">${x}</b><span>${l}</span></div>`).join('');
   const sv=$('#sales'); sv.innerHTML=''; const W=sv.clientWidth||600,H=sv.clientHeight||162; sv.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  const L=40,Rr=96,T=10,B=20, D=S.daysInMonth, mx=S.monthPlan*1.08, x=i=>L+i*(W-L-Rr)/(D-1), y=v=>T+(1-v/mx)*(H-T-B);
+  const L=44,Rr=118,T=10,B=20, D=S.daysInMonth, mx=S.monthPlan*1.08, x=i=>L+i*(W-L-Rr)/(D-1), y=v=>T+(1-v/mx)*(H-T-B);
   [0,.25,.5,.75,1].forEach(f=>{const v=S.monthPlan*f;el('line',{x1:L,x2:W-Rr,y1:y(v),y2:y(v),stroke:'rgba(255,255,255,.06)'},sv);
-    const t=el('text',{x:L-6,y:y(v)+4,'text-anchor':'end',class:'axis'},sv);t.textContent=Math.round(v);});
+    const t=el('text',{x:L-6,y:y(v)+4,'text-anchor':'end',class:'axis'},sv);t.textContent=pre+Math.round(v);});
   [1,5,10,15,20,25,30].forEach(d=>{const t=el('text',{x:x(d-1),y:H-4,'text-anchor':'middle',class:'axis'},sv);t.textContent=d;});
   // daily bars (actual vs plan) at bottom
   const bw=(W-L-Rr)/D*.55, by=v=>v/2.2*34;
@@ -350,10 +358,10 @@ function drawSales(){
   const lab=(yy,txt,cc)=>{const t=el('text',{x:W-Rr+8,y:yy+4,fill:cc,'font-size':12,'font-weight':600},sv);t.textContent=txt;};
   let yP=y(S.monthPlan), yJ=y(proj); if(Math.abs(yP-yJ)<16){ if(yJ>yP) yJ=yP+16; else yJ=yP-16; }
   const lg=el('text',{x:L+8,y:T+12,class:'axis'},sv); lg.textContent='— Actual (cumulative)   - - Plan   ··· Run-rate projection';
-  lab(yP,'Plan '+S.monthPlan.toFixed(1),'#94a3b8'); lab(yJ,'Proj. '+proj.toFixed(1),pc);
+  lab(yP,'Plan '+pre+S.monthPlan.toFixed(1)+sufT,'#94a3b8'); lab(yJ,'Proj. '+pre+proj.toFixed(1)+sufT,pc);
   $('#regs').innerHTML=S.regions.map(r=>{const p=r.actual/r.plan*100,cc=p>=100?'var(--green)':p>=95?'var(--amber)':'var(--red)';
     return `<div class="rg"><div class="t"><span>${r.region}</span><b class="num" style="color:${cc}">${f1(p)}%</b></div>
-      <div class="s num">${r.actual.toFixed(2)} / ${r.plan.toFixed(2)}</div><div class="track"><div class="fill" style="width:${Math.min(p,100)}%;background:${cc}"></div></div></div>`;}).join('');
+      <div class="s num">${pre}${r.actual.toFixed(2)} / ${r.plan.toFixed(2)}</div><div class="track"><div class="fill" style="width:${Math.min(p,100)}%;background:${cc}"></div></div></div>`;}).join('');
 }
 
 /* ---------- Space utilisation rings ---------- */
@@ -474,6 +482,9 @@ fit(); tickClock(); setInterval(tickClock,1000);
 $('#rs').textContent=CONFIG.refreshSec;
 loadData(); setInterval(loadData,CONFIG.refreshSec*1000);
 setInterval(rotateTrend,CONFIG.trendRotateSec*1000);
+setInterval(()=>{ if(Date.now()<salesPausedUntil) return; switchSales(salesView==='inr'?'cs':'inr'); }, CONFIG.salesViewSec*1000);
+function switchSales(v){ const p=$('#ssum').parentElement; p.style.transition='opacity .4s'; p.style.opacity=.15; setTimeout(()=>{salesView=v;drawSales();p.style.opacity=1;},400); }
+$('#sview').addEventListener('click',e=>{ const t=e.target.closest('.tab'); if(!t) return; salesPausedUntil=Date.now()+CONFIG.pauseAfterClickSec*1000; switchSales(t.dataset.v); });
 $('#tabs').addEventListener('click',e=>{ const t=e.target.closest('.tab'); if(!t) return;
   pausedUntil=Date.now()+CONFIG.pauseAfterClickSec*1000; showTrend(t.dataset.k); });
 requestAnimationFrame(scrollExceptions);
