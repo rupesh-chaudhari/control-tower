@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supply Chain Control Tower — Live Wall</title>
+<style>
+:root{
+  --bg:#060b18;--bg2:#0b1426;--panel:rgba(18,30,56,.72);--line:rgba(120,160,255,.14);
+  --fg:#e8eefc;--mut:#8b9bc0;--dim:#5b6a8f;
+  --cyan:#38bdf8;--blue:#6366f1;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--violet:#a78bfa;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);
+  font-family:"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif}
+body{background:radial-gradient(1200px 700px at 15% -10%,rgba(56,189,248,.14),transparent 60%),
+  radial-gradient(1000px 600px at 110% 110%,rgba(99,102,241,.16),transparent 60%),var(--bg)}
+#stage{width:1920px;height:1080px;position:absolute;left:50%;top:50%;transform-origin:center center;
+  padding:22px 26px;display:grid;gap:16px;
+  grid-template-rows:64px 150px 1fr 330px 44px}
+.num{font-variant-numeric:tabular-nums}
+/* header */
+.hdr{display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:16px}
+.logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,var(--cyan),var(--blue));
+  display:grid;place-items:center;box-shadow:0 0 28px rgba(56,189,248,.45)}
+.logo svg{width:28px;height:28px}
+.brand h1{font-size:28px;font-weight:600;letter-spacing:.3px}
+.brand p{font-size:14px;color:var(--mut);margin-top:2px}
+.hright{display:flex;align-items:center;gap:22px}
+.live{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:2px;font-size:14px;color:var(--green)}
+.dot{width:11px;height:11px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(34,197,94,.7);animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.7)}70%{box-shadow:0 0 0 12px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+.badge{font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid rgba(245,158,11,.5);color:var(--amber);letter-spacing:1px}
+.clock{text-align:right}
+.clock b{font-size:30px;font-weight:600;display:block;line-height:1}
+.clock span{font-size:13px;color:var(--mut)}
+/* panels */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px;position:relative;overflow:hidden;
+  backdrop-filter:blur(6px);box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)}
+.panel::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,transparent,var(--accent,var(--cyan)),transparent);opacity:.7}
+.ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.ph h2{font-size:17px;font-weight:600;letter-spacing:.3px}
+.ph small{font-size:12.5px;color:var(--mut)}
+/* KPI row */
+.kpis{display:grid;grid-template-columns:repeat(9,1fr);gap:12px}
+.kpi{padding:14px 16px 10px;display:flex;flex-direction:column}
+.kpi .lbl{font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:1.2px}
+.kpi .val{font-size:36px;font-weight:600;line-height:1.1;margin-top:4px;transition:color .6s}
+.kpi .sub{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-top:2px}
+.kpi svg{margin-top:auto;width:100%;height:34px}
+.kpi.ok{--accent:var(--green)}.kpi.warn{--accent:var(--amber)}.kpi.bad{--accent:var(--red)}
+.kpi.ok .val{color:#bff5d2}.kpi.warn .val{color:#fde3b0}.kpi.bad .val{color:#fecaca}
+.up{color:var(--green)}.dn{color:var(--red)}
+/* row 2 & 3 */
+.row2{display:grid;grid-template-columns:1.08fr 1fr 1.08fr;gap:16px;min-height:0}
+.row3{display:grid;grid-template-columns:.9fr 1fr .85fr 1.25fr;gap:16px;min-height:0}
+/* vehicle placement */
+.vsum{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px}
+.vs{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:5px 10px}
+.vs b{font-size:23px;font-weight:600;display:block}
+.vs span{font-size:10.5px;white-space:nowrap;color:var(--mut);text-transform:uppercase;letter-spacing:.8px}
+.vrow{display:grid;grid-template-columns:96px 1fr 62px 74px;align-items:center;gap:10px;font-size:14px;height:22.5px}
+.vrow .nm{color:var(--fg)}
+.track{height:10px;border-radius:6px;background:rgba(255,255,255,.07);position:relative;overflow:hidden}
+.fill{position:absolute;inset:0 auto 0 0;border-radius:6px;transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+.vrow .pc{text-align:right;font-weight:600}
+.vrow .tx{text-align:right;color:var(--mut);font-size:12.5px}
+.vhead{display:grid;grid-template-columns:96px 1fr 62px 74px;gap:10px;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px}
+.vhead span:nth-child(n+3){text-align:right}
+/* space util */
+.rings{display:grid;grid-template-columns:repeat(5,1fr);gap:8px 6px}
+.ring{text-align:center}
+.ring svg{width:100%;height:118px}
+.ring .n{font-size:14px;font-weight:600;margin-top:-4px}
+.ring .s{font-size:11.5px;color:var(--mut)}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--mut);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+/* sales */
+.ssum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:6px}
+.regs{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:4px}
+.rg{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:10px;padding:5px 8px}
+.rg .t{display:flex;justify-content:space-between;gap:6px;font-size:12.5px}
+.rg .t b{font-size:14px}
+.rg .s{font-size:11px;color:var(--mut);margin-top:1px}
+.rg .track{height:6px;margin-top:4px}
+/* trend */
+.tabs{display:flex;gap:6px}
+.tab{font-size:11.5px;padding:3px 9px;white-space:nowrap;border-radius:999px;color:var(--mut);border:1px solid var(--line);transition:all .4s}
+.tab{cursor:pointer;user-select:none}.tab:hover{color:var(--fg);border-color:var(--cyan)}
+.tab.on{color:#061020;background:var(--cyan);border-color:var(--cyan);font-weight:600}
+#trend{width:100%;transition:opacity .5s}
+/* exceptions */
+.exwrap{height:calc(100% - 66px);overflow:hidden;position:relative;
+  mask-image:linear-gradient(180deg,transparent,#000 6%,#000 92%,transparent)}
+.exlist{display:flex;flex-direction:column;gap:9px}
+.ex{display:grid;grid-template-columns:8px 1fr auto;gap:12px;background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.ex .bar{border-radius:4px}
+.ex h3{font-size:15px;font-weight:600}
+.ex p{font-size:13px;color:var(--mut);margin-top:3px}
+.ex .meta{text-align:right;font-size:12.5px;color:var(--mut);white-space:nowrap}
+.ex .meta b{display:block;font-size:17px;color:var(--fg)}
+.chips{display:flex;gap:10px;margin-bottom:10px}
+.chip{font-size:13px;padding:4px 12px;border-radius:999px;border:1px solid currentColor}
+.chip b{font-size:15px;margin-right:4px}
+/* ticker */
+.ticker{border-radius:12px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);display:flex;align-items:center;overflow:hidden}
+.ticker .tl{flex:none;height:100%;display:flex;align-items:center;padding:0 16px;background:rgba(239,68,68,.85);color:#fff;font-weight:700;letter-spacing:2px;font-size:13px}
+.ticker .tt{white-space:nowrap;display:inline-block;padding-left:100%;animation:tick 70s linear infinite;font-size:16px}
+.ticker .tt span{margin-right:60px}
+.ticker .tt em{font-style:normal;color:var(--amber);font-weight:600;margin-right:6px}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+svg text{font-family:inherit}
+.axis{fill:var(--dim);font-size:12px}
+.foot{position:absolute;right:30px;bottom:6px;font-size:11px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- HEADER -->
+  <header class="hdr">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#061020" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div>
+      <div><h1>End-to-End Supply Chain Control Tower</h1><p>Plan · Source · Make · Store · Move · Sell — leadership wall view</p></div>
+    </div>
+    <div class="hright">
+      <span class="badge" id="dataBadge">SAMPLE DATA</span>
+      <div class="live"><span class="dot"></span>LIVE</div>
+      <div class="clock"><b class="num" id="clk">--:--:--</b><span id="dte">—</span> · <span id="upd">refreshed —</span></div>
+    </div>
+  </header>
+
+  <!-- KPI ROW -->
+  <section class="kpis" id="kpis"></section>
+
+  <!-- ROW 2 -->
+  <section class="row2">
+    <div class="panel" style="--accent:var(--cyan)">
+      <div class="ph"><h2>🚚 Vehicle placement — today</h2><small>Indented vs placed by CFA lane</small></div>
+      <div class="vsum" id="vsum"></div>
+      <div class="vhead"><span>CFA</span><span>Placed / indented</span><span>Placed</span><span>Transit</span></div>
+      <div id="vrows"></div>
+    </div>
+    <div class="panel" style="--accent:var(--green)">
+      <div class="ph"><h2>💰 Plan vs actual sales — <span id="smon">month to date</span></h2><small>Lakh cases</small></div>
+      <div class="ssum" id="ssum"></div>
+      <svg id="sales" style="width:100%;height:178px"></svg>
+      <div class="regs" id="regs"></div>
+    </div>
+    <div class="panel" style="--accent:var(--amber)">
+      <div class="ph"><h2>🏬 CFA space utilisation</h2><small>Pallet positions used ÷ capacity</small></div>
+      <div class="rings" id="rings"></div>
+      <div class="legend"><span><i style="background:var(--cyan)"></i>&lt; 80% healthy</span><span><i style="background:var(--amber)"></i>80–90% tight</span><span><i style="background:var(--red)"></i>&gt; 90% congested</span></div>
+    </div>
+  </section>
+
+  <!-- ROW 3 -->
+  <section class="row3">
+    <div class="panel" style="--accent:var(--blue)">
+      <div class="ph"><h2>🏭 Co-pack adherence</h2><small>MTD · tgt 90%</small></div>
+      <svg id="copack" style="width:100%;height:calc(100% - 30px)"></svg>
+    </div>
+    <div class="panel" style="--accent:var(--violet)">
+      <div class="ph"><h2 id="trendTitle">13-week trend</h2></div>
+      <div class="tabs" id="tabs" style="flex-wrap:wrap;margin:-4px 0 4px"></div>
+      <svg id="trend" style="height:calc(100% - 64px)"></svg>
+    </div>
+    <div class="panel" style="--accent:var(--green)">
+      <div class="ph"><h2>📦 CFA days of cover</h2><small>Norm 12–18 d</small></div>
+      <svg id="cover" style="width:100%;height:calc(100% - 30px)"></svg>
+    </div>
+    <div class="panel" style="--accent:var(--red)">
+      <div class="ph"><h2>⚠️ Open exceptions — decisions needed</h2><small id="exAge">—</small></div>
+      <div class="chips" id="chips"></div>
+      <div class="exwrap"><div class="exlist" id="exlist"></div></div>
+    </div>
+  </section>
+
+  <!-- TICKER -->
+  <div class="ticker"><div class="tl">ALERTS</div><div style="overflow:hidden;flex:1"><div class="tt" id="tick"></div></div></div>
+  <div class="foot">Press F for full screen · Data refresh every <span id="rs">60</span>s</div>
+</div>
+
+<script>
+/* ================= CONFIG =================
+   dataUrl: leave empty to run on built-in SAMPLE data.
+   To go live, point it at a JSON endpoint (e.g. a Fabric / Azure SQL API, Power Automate
+   HTTP flow, or a file on a shared server) that returns the same shape as SAMPLE below. */
+const CONFIG = { dataUrl: '', refreshSec: 60, trendRotateSec: 12, pauseAfterClickSec: 60 };
+
+const TARGETS = {
+  sales_ach:{label:'Sales vs plan',short:'Sales',unit:'%',dir:'up',t:100},
+  fill_rate:{label:'Fill rate',short:'Fill',unit:'%',dir:'up',t:95},
+  otif:{label:'OTIF',short:'OTIF',unit:'%',dir:'up',t:92},
+  forecast_accuracy:{label:'Forecast acc.',short:'Fcst',unit:'%',dir:'up',t:75},
+  copack_adherence:{label:'Co-pack adh.',short:'Co-pack',unit:'%',dir:'up',t:90},
+  vehicle_placement:{label:'Vehicle placement',short:'Placement',unit:'%',dir:'up',t:95},
+  days_cover:{label:'Days of cover',unit:'d',dir:'band',lo:12,hi:18},
+  space_util:{label:'CFA space util.',short:'Space',unit:'%',dir:'band',lo:70,hi:85},
+  freight_per_case:{label:'Freight / case',unit:'₹',dir:'down',t:19.5}
+};
+
+/* ---------- SAMPLE DATA (illustrative, not real) ---------- */
+const SAMPLE = {
+  weeks:['W33','W34','W35','W36','W37','W38','W39','W40','W41','W42','W43','W44','W45'],
+  trend:{
+    sales_ach:[101.2,98.4,96.9,103.5,99.1,97.6,104.8,102.2,95.3,93.8,97.1,99.4,94.6],
+    fill_rate:[94.8,95.2,94.1,93.6,94.4,95.0,94.7,93.9,93.2,92.8,93.5,93.9,93.1],
+    otif:[92.3,92.5,91.4,90.9,91.6,92.4,91.9,91.0,90.6,90.1,90.8,91.2,90.4],
+    forecast_accuracy:[69.2,68.3,72.5,74.1,73.8,71.6,75.4,72.9,70.8,74.6,72.2,73.0,71.2],
+    copack_adherence:[84.7,84.6,88.2,91.0,90.4,87.9,89.3,92.1,86.0,88.8,90.6,89.7,86.4],
+    vehicle_placement:[95.8,96.4,94.9,93.2,92.6,94.1,95.5,93.8,91.9,92.7,93.6,94.0,92.4],
+    days_cover:[17.2,15.8,16.4,18.9,14.3,13.6,15.1,17.7,19.2,18.4,16.9,16.1,17.8],
+    space_util:[78,79,81,83,82,84,86,85,87,86,84,85,86],
+    freight_per_case:[19.9,18.65,19.4,20.1,19.6,20.8,19.2,18.9,20.4,21.0,20.1,19.8,20.35]
+  },
+  sales:{ // month to date, lakh cases (Nov)
+    month:'Nov 2026', daysInMonth:30, asOfDay:13, monthPlan:52.0,
+    dailyPlan:[1.45,1.6,1.7,1.72,1.75,1.8,1.55,1.5,1.7,1.75,1.78,1.8,1.85,1.65,1.6,1.75,1.8,1.82,1.85,1.9,1.7,1.65,1.8,1.85,1.88,1.9,1.95,2.0,1.95,1.83],
+    dailyActual:[1.38,1.52,1.71,1.6,1.66,1.74,1.41,1.39,1.62,1.58,1.7,1.69,1.72],
+    regions:[
+      {region:'North',plan:5.62,actual:5.48},{region:'South',plan:5.30,actual:5.41},
+      {region:'West',plan:4.70,actual:4.22},{region:'East',plan:3.40,actual:2.91},{region:'Central',plan:2.65,actual:2.70}]
+  },
+  vehicles:[ // today, by CFA lane
+    {cfa:'Gurgaon',indent:42,placed:40,intransit:31,delayed:2},
+    {cfa:'Lucknow',indent:18,placed:17,intransit:12,delayed:1},
+    {cfa:'Bhiwandi',indent:36,placed:31,intransit:27,delayed:4},
+    {cfa:'Ahmedabad',indent:20,placed:19,intransit:15,delayed:0},
+    {cfa:'Bengaluru',indent:34,placed:34,intransit:22,delayed:1},
+    {cfa:'Chennai',indent:22,placed:21,intransit:16,delayed:1},
+    {cfa:'Hyderabad',indent:24,placed:22,intransit:18,delayed:2},
+    {cfa:'Kolkata',indent:26,placed:21,intransit:19,delayed:5},
+    {cfa:'Guwahati',indent:10,placed:7,intransit:9,delayed:3},
+    {cfa:'Indore',indent:16,placed:15,intransit:11,delayed:0}
+  ],
+  space:[ // pallet positions
+    {cfa:'Gurgaon',cap:4200,used:3360},{cfa:'Lucknow',cap:1800,used:1190},
+    {cfa:'Bhiwandi',cap:5000,used:4710},{cfa:'Ahmedabad',cap:2400,used:2050},
+    {cfa:'Indore',cap:1600,used:1310},{cfa:'Bengaluru',cap:3800,used:2990},
+    {cfa:'Chennai',cap:2600,used:1870},{cfa:'Hyderabad',cap:2800,used:2390},
+    {cfa:'Kolkata',cap:2500,used:1520},{cfa:'Guwahati',cap:1000,used:540}
+  ],
+  copack:[
+    {cp:'CP-1 Haridwar',plan:182000,actual:171100},{cp:'CP-2 Bengaluru',plan:156000,actual:152900},
+    {cp:'CP-3 Nashik',plan:140000,actual:113400},{cp:'CP-4 Kolkata',plan:98000,actual:80400},
+    {cp:'CP-5 Ahmedabad',plan:76000,actual:71400}
+  ],
+  cover:[
+    {cfa:'Guwahati',d:7.8},{cfa:'Kolkata',d:9.4},{cfa:'Gurgaon',d:14.6},{cfa:'Chennai',d:15.9},
+    {cfa:'Lucknow',d:16.2},{cfa:'Hyderabad',d:17.1},{cfa:'Bengaluru',d:17.4},{cfa:'Ahmedabad',d:18.6},
+    {cfa:'Indore',d:18.9},{cfa:'Bhiwandi',d:23.8}
+  ],
+  exceptions:[
+    {sev:'Critical',stage:'Make',node:'CP-3 Nashik',issue:'Line 2 down — mango 200 ml 19% behind plan',impact:26600,owner:'Co-pack lead',age:4,next:'Shift 14k cases to CP-1'},
+    {sev:'Critical',stage:'Move',node:'Guwahati CFA',issue:'Only 7 of 10 trucks placed; cover 7.8 days',impact:9200,owner:'Logistics East',age:2,next:'Expedite 2 FTL from Kolkata'},
+    {sev:'Critical',stage:'Store',node:'Bhiwandi CFA',issue:'Space at 94% and 5.4k cases near expiry',impact:5420,owner:'Zonal planner West',age:6,next:'Liquidate via MT promo; hold inbound'},
+    {sev:'High',stage:'Source',node:'PM supplier – Tetra',issue:'Packaging delivery 5 days late; Kolkata at risk',impact:18000,owner:'Procurement',age:3,next:'Air-freight 2 days of PM'},
+    {sev:'High',stage:'Move',node:'Kolkata CFA',issue:'Placement 81%; 5 vehicles delayed > 24 h',impact:7400,owner:'Transport desk',age:1,next:'Activate standby transporter'},
+    {sev:'High',stage:'Sell',node:'East region sales',issue:'MTD sales 85.6% of plan; 0.49 lakh cases short',impact:49000,owner:'Regional sales + planning',age:5,next:'Re-phase allocation; push GT schemes'},
+    {sev:'High',stage:'Sell',node:'Modern Trade – East',issue:'Key account fill rate 86% for 2 weeks',impact:7400,owner:'Account planner',age:9,next:'Ring-fence allocation'},
+    {sev:'Medium',stage:'Move',node:'Haridwar → Gurgaon',issue:'Truck fill 78%; part loads on 3 dispatches',impact:0,owner:'Logistics',age:5,next:'Club with Lucknow loads'},
+    {sev:'Medium',stage:'Plan',node:'Aamras 250 ml',issue:'Forecast bias +22% for 4 weeks',impact:11000,owner:'Demand planning',age:12,next:'Re-baseline in S&OP'}
+  ]
+};
+
+/* ---------- helpers ---------- */
+const $ = (s)=>document.querySelector(s);
+const NS='http://www.w3.org/2000/svg';
+const el=(tag,attrs={},parent)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;};
+const f1=(v)=>(Math.round(v*10)/10).toFixed(1);
+const fmt=(k,v)=>{const u=TARGETS[k].unit;return u==='₹'?'₹'+v.toFixed(2):u==='d'?f1(v)+' d':f1(v)+'%';};
+const tgtTxt=(k)=>{const m=TARGETS[k];return m.dir==='band'?`${m.lo}–${m.hi}${m.unit==='d'?' d':'%'}`:(m.dir==='down'?'≤ ':'≥ ')+fmt(k,m.t);};
+const status=(k,v)=>{const m=TARGETS[k];
+  if(m.dir==='band'){if(v>=m.lo&&v<=m.hi)return'ok';const tol=(m.hi-m.lo)*0.35;return(v>=m.lo-tol&&v<=m.hi+tol)?'warn':'bad';}
+  if(m.dir==='up'){if(v>=m.t)return'ok';return v>=m.t*0.97?'warn':'bad';}
+  if(v<=m.t)return'ok';return v<=m.t*1.06?'warn':'bad';};
+const better=(k,v,p)=>{const m=TARGETS[k];if(m.dir==='band'){const mid=(m.lo+m.hi)/2;return Math.abs(v-mid)<Math.abs(p-mid);}return m.dir==='up'?v>p:v<p;};
+const col={ok:'var(--green)',warn:'var(--amber)',bad:'var(--red)'};
+const utilCol=(p)=>p>90?'var(--red)':p>=80?'var(--amber)':'var(--cyan)';
+const plcCol=(p)=>p>=95?'var(--green)':p>=88?'var(--amber)':'var(--red)';
+const sevCol={Critical:'var(--red)',High:'var(--amber)',Medium:'var(--cyan)',Low:'var(--dim)'};
+
+let DATA = JSON.parse(JSON.stringify(SAMPLE));
+let trendKey = 'fill_rate', trendIdx = 0;
+const TREND_KEYS=['sales_ach','fill_rate','otif','vehicle_placement','copack_adherence','forecast_accuracy','space_util'];
+
+/* ---------- KPI tiles ---------- */
+function drawKPIs(){
+  const box=$('#kpis'); box.innerHTML='';
+  Object.keys(TARGETS).forEach(k=>{
+    const s=DATA.trend[k]; const v=s[s.length-1], p=s[s.length-2], st=status(k,v), ch=v-p;
+    const d=document.createElement('div'); d.className='panel kpi '+st;
+    const u=TARGETS[k].unit; const chTxt=(ch>0?'▲ ':ch<0?'▼ ':'')+(u==='₹'?Math.abs(ch).toFixed(2):f1(Math.abs(ch)))+(u==='%'?' pts':u==='d'?' d':'');
+    d.innerHTML=`<div class="lbl">${TARGETS[k].label}</div><div class="val num">${fmt(k,v)}</div>
+      <div class="sub"><span class="num ${ch===0?'':better(k,v,p)?'up':'dn'}">${chTxt} WoW</span><span>tgt ${tgtTxt(k)}</span></div>`;
+    const sv=el('svg',{viewBox:'0 0 200 34',preserveAspectRatio:'none'}); d.appendChild(sv);
+    const mn=Math.min(...s),mx=Math.max(...s),r=(mx-mn)||1;
+    const pts=s.map((y,i)=>[i*(200/(s.length-1)),30-((y-mn)/r)*26]);
+    const g=el('linearGradient',{id:'g'+k,x1:0,x2:0,y1:0,y2:1},el('defs',{},sv));
+    el('stop',{offset:'0','stop-color':col[st],'stop-opacity':.35},g);el('stop',{offset:'1','stop-color':col[st],'stop-opacity':0},g);
+    el('path',{d:'M'+pts.map(q=>q.join(',')).join('L')+` L200,34 L0,34Z`,fill:`url(#g${k})`},sv);
+    el('path',{d:'M'+pts.map(q=>q.join(',')).join('L'),fill:'none',stroke:col[st],'stroke-width':2,'vector-effect':'non-scaling-stroke'},sv);
+    box.appendChild(d);
+  });
+}
+
+/* ---------- Vehicle placement ---------- */
+function drawVehicles(){
+  const v=DATA.vehicles, ind=v.reduce((a,b)=>a+b.indent,0), pl=v.reduce((a,b)=>a+b.placed,0),
+    it=v.reduce((a,b)=>a+b.intransit,0), dl=v.reduce((a,b)=>a+b.delayed,0), pct=pl/ind*100;
+  $('#vsum').innerHTML=[
+    ['Indented',ind,''],['Placed',pl,''],['Placement',f1(pct)+'%',plcCol(pct)],['In transit',it,''],['Delayed 24h+',dl,dl>8?'var(--red)':'var(--amber)']
+  ].map(([l,x,c])=>`<div class="vs"><b class="num" style="${c?'color:'+c:''}">${x}</b><span>${l}</span></div>`).join('');
+  const rows=$('#vrows'); rows.innerHTML='';
+  [...v].sort((a,b)=>a.placed/a.indent-b.placed/b.indent).forEach(r=>{
+    const p=r.placed/r.indent*100, d=document.createElement('div'); d.className='vrow';
+    d.innerHTML=`<span class="nm">${r.cfa}</span><div class="track"><div class="fill" style="width:0;background:linear-gradient(90deg,${plcCol(p)},${plcCol(p)})"></div></div>
+      <span class="pc num" style="color:${plcCol(p)}">${r.placed}/${r.indent}</span><span class="tx num">${r.intransit}${r.delayed?` · <span style="color:var(--red)">${r.delayed}⚠</span>`:''}</span>`;
+    rows.appendChild(d); requestAnimationFrame(()=>setTimeout(()=>d.querySelector('.fill').style.width=p+'%',60));
+  });
+}
+
+/* ---------- Plan vs actual sales ---------- */
+function drawSales(){
+  const S=DATA.sales, n=S.asOfDay, cumP=[],cumA=[]; let a=0,b=0;
+  S.dailyPlan.forEach((v,i)=>{a+=v;cumP.push(a);}); S.dailyActual.slice(0,n).forEach(v=>{b+=v;cumA.push(b);});
+  const planMTD=cumP[n-1], actMTD=cumA[n-1], ach=actMTD/planMTD*100, proj=actMTD/n*S.daysInMonth, projAch=proj/S.monthPlan*100;
+  const c=ach>=100?'var(--green)':ach>=95?'var(--amber)':'var(--red)', pc=projAch>=100?'var(--green)':projAch>=95?'var(--amber)':'var(--red)';
+  $('#smon').textContent=S.month+' · day '+n+' of '+S.daysInMonth;
+  $('#ssum').innerHTML=[['Plan MTD',planMTD.toFixed(2),''],['Actual MTD',actMTD.toFixed(2),''],['Achievement',f1(ach)+'%',c],['Month-end run-rate',proj.toFixed(1)+' / '+S.monthPlan.toFixed(1),pc]]
+    .map(([l,x,cc])=>`<div class="vs"><b class="num" style="${cc?'color:'+cc:''}">${x}</b><span>${l}</span></div>`).join('');
+  const sv=$('#sales'); sv.innerHTML=''; const W=sv.clientWidth||600,H=sv.clientHeight||162; sv.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const L=40,Rr=96,T=10,B=20, D=S.daysInMonth, mx=S.monthPlan*1.08, x=i=>L+i*(W-L-Rr)/(D-1), y=v=>T+(1-v/mx)*(H-T-B);
+  [0,.25,.5,.75,1].forEach(f=>{const v=S.monthPlan*f;el('line',{x1:L,x2:W-Rr,y1:y(v),y2:y(v),stroke:'rgba(255,255,255,.06)'},sv);
+    const t=el('text',{x:L-6,y:y(v)+4,'text-anchor':'end',class:'axis'},sv);t.textContent=Math.round(v);});
+  [1,5,10,15,20,25,30].forEach(d=>{const t=el('text',{x:x(d-1),y:H-4,'text-anchor':'middle',class:'axis'},sv);t.textContent=d;});
+  // daily bars (actual vs plan) at bottom
+  const bw=(W-L-Rr)/D*.55, by=v=>v/2.2*34;
+  // cumulative plan (dashed) and actual (area)
+  el('path',{d:'M'+cumP.map((v,i)=>x(i)+','+y(v)).join('L'),fill:'none',stroke:'#94a3b8','stroke-width':2,'stroke-dasharray':'6 5'},sv);
+  const g=el('linearGradient',{id:'sg',x1:0,x2:0,y1:0,y2:1},el('defs',{},sv));
+  el('stop',{offset:0,'stop-color':'#22c55e','stop-opacity':.35},g);el('stop',{offset:1,'stop-color':'#22c55e','stop-opacity':0},g);
+  const ad='M'+cumA.map((v,i)=>x(i)+','+y(v)).join('L');
+  el('path',{d:ad+`L${x(n-1)},${H-B}L${x(0)},${H-B}Z`,fill:'url(#sg)'},sv);
+  el('path',{d:ad,fill:'none',stroke:'#22c55e','stroke-width':3},sv);
+  el('path',{d:`M${x(n-1)},${y(actMTD)}L${x(D-1)},${y(proj)}`,fill:'none',stroke:pc,'stroke-width':2,'stroke-dasharray':'2 5'},sv);
+  el('circle',{cx:x(n-1),cy:y(actMTD),r:5,fill:'#22c55e',stroke:'#0b1426','stroke-width':2},sv);
+  el('line',{x1:x(n-1),x2:x(n-1),y1:T,y2:H-B,stroke:'rgba(255,255,255,.18)','stroke-dasharray':'3 4'},sv);
+  const lab=(yy,txt,cc)=>{const t=el('text',{x:W-Rr+8,y:yy+4,fill:cc,'font-size':12,'font-weight':600},sv);t.textContent=txt;};
+  let yP=y(S.monthPlan), yJ=y(proj); if(Math.abs(yP-yJ)<16){ if(yJ>yP) yJ=yP+16; else yJ=yP-16; }
+  const lg=el('text',{x:L+8,y:T+12,class:'axis'},sv); lg.textContent='— Actual (cumulative)   - - Plan   ··· Run-rate projection';
+  lab(yP,'Plan '+S.monthPlan.toFixed(1),'#94a3b8'); lab(yJ,'Proj. '+proj.toFixed(1),pc);
+  $('#regs').innerHTML=S.regions.map(r=>{const p=r.actual/r.plan*100,cc=p>=100?'var(--green)':p>=95?'var(--amber)':'var(--red)';
+    return `<div class="rg"><div class="t"><span>${r.region}</span><b class="num" style="color:${cc}">${f1(p)}%</b></div>
+      <div class="s num">${r.actual.toFixed(2)} / ${r.plan.toFixed(2)}</div><div class="track"><div class="fill" style="width:${Math.min(p,100)}%;background:${cc}"></div></div></div>`;}).join('');
+}
+
+/* ---------- Space utilisation rings ---------- */
+function drawRings(){
+  const box=$('#rings'); box.innerHTML='';
+  DATA.space.forEach(s=>{
+    const p=s.used/s.cap*100, R=40, C=2*Math.PI*R, c=utilCol(p);
+    const d=document.createElement('div'); d.className='ring';
+    const sv=el('svg',{viewBox:'0 0 110 110'}); d.appendChild(sv);
+    el('circle',{cx:55,cy:55,r:R,fill:'none',stroke:'rgba(255,255,255,.08)','stroke-width':10},sv);
+    const arc=el('circle',{cx:55,cy:55,r:R,fill:'none',stroke:c,'stroke-width':10,'stroke-linecap':'round',
+      'stroke-dasharray':C,'stroke-dashoffset':C,transform:'rotate(-90 55 55)',style:'transition:stroke-dashoffset 1.4s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 6px '+c+')'},sv);
+    const t=el('text',{x:55,y:61,'text-anchor':'middle',fill:'#e8eefc','font-size':22,'font-weight':600},sv); t.textContent=Math.round(p)+'%';
+    d.insertAdjacentHTML('beforeend',`<div class="n">${s.cfa}</div><div class="s num">${s.used.toLocaleString('en-IN')} / ${s.cap.toLocaleString('en-IN')}</div>`);
+    box.appendChild(d); setTimeout(()=>arc.setAttribute('stroke-dashoffset',C*(1-Math.min(p,100)/100)),80);
+  });
+}
+
+/* ---------- Trend (rotates) ---------- */
+function drawTabs(){ $('#tabs').innerHTML=TREND_KEYS.map(k=>`<span class="tab ${k===trendKey?'on':''}" data-k="${k}">${TARGETS[k].short}</span>`).join(''); }
+function drawTrend(){
+  const sv=$('#trend'); sv.innerHTML=''; const W=sv.clientWidth||560,H=sv.clientHeight||330; sv.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const k=trendKey,m=TARGETS[k],s=DATA.trend[k],wk=DATA.weeks; $('#trendTitle').textContent='📈 '+m.label+' · 13 wk';
+  const refs=m.dir==='band'?[m.lo,m.hi]:[m.t]; let lo=Math.min(...s,...refs),hi=Math.max(...s,...refs); const pad=(hi-lo)*.25||1; lo-=pad;hi+=pad;
+  const L=48,R=70,T=26,B=30, x=i=>L+i*(W-L-R)/(s.length-1), y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
+  for(let i=0;i<5;i++){const v=lo+(hi-lo)*i/4;el('line',{x1:L,x2:W-R,y1:y(v),y2:y(v),stroke:'rgba(255,255,255,.06)'},sv);
+    const t=el('text',{x:L-8,y:y(v)+4,'text-anchor':'end',class:'axis'},sv);t.textContent=m.unit==='₹'?'₹'+v.toFixed(1):Math.round(v)+(m.unit==='d'?'':'%');}
+  wk.forEach((w,i)=>{if(i%2===0){const t=el('text',{x:x(i),y:H-8,'text-anchor':'middle',class:'axis'},sv);t.textContent=w;}});
+  if(m.dir==='band')el('rect',{x:L,width:W-L-R,y:y(m.hi),height:y(m.lo)-y(m.hi),fill:'rgba(34,197,94,.08)'},sv);
+  refs.forEach(t=>{el('line',{x1:L,x2:W-R,y1:y(t),y2:y(t),stroke:'var(--green)','stroke-dasharray':'6 5','stroke-opacity':.7},sv);
+    const tx=el('text',{x:W-R+8,y:y(t)+4,fill:'var(--green)','font-size':12},sv);tx.textContent=(m.dir==='band'?'':'Target ')+(m.unit==='₹'?'₹'+t:t+(m.unit==='d'?' d':'%'));});
+  const gid='tg'; const g=el('linearGradient',{id:gid,x1:0,x2:0,y1:0,y2:1},el('defs',{},sv));
+  el('stop',{offset:0,'stop-color':'#a78bfa','stop-opacity':.45},g);el('stop',{offset:1,'stop-color':'#a78bfa','stop-opacity':0},g);
+  const d='M'+s.map((v,i)=>x(i)+','+y(v)).join('L');
+  el('path',{d:d+`L${x(s.length-1)},${H-B}L${x(0)},${H-B}Z`,fill:`url(#${gid})`},sv);
+  const path=el('path',{d,fill:'none',stroke:'#a78bfa','stroke-width':3,'stroke-linejoin':'round'},sv);
+  const len=path.getTotalLength(); path.style.strokeDasharray=len; path.style.strokeDashoffset=len; path.getBoundingClientRect();
+  path.style.transition='stroke-dashoffset 1.6s ease-out'; path.style.strokeDashoffset=0;
+  s.forEach((v,i)=>el('circle',{cx:x(i),cy:y(v),r:i===s.length-1?6:4,fill:status(k,v)==='ok'?'#a78bfa':'var(--red)',stroke:'#0b1426','stroke-width':2},sv));
+  const lv=s[s.length-1]; const lt=el('text',{x:x(s.length-1),y:y(lv)-14,'text-anchor':'middle',fill:'#fff','font-size':16,'font-weight':700},sv); lt.textContent=fmt(k,lv);
+}
+let pausedUntil=0;
+function showTrend(k){ const sv=$('#trend'); sv.style.opacity=0; setTimeout(()=>{trendKey=k;trendIdx=TREND_KEYS.indexOf(k);drawTabs();drawTrend();sv.style.opacity=1;},250); }
+function rotateTrend(){ if(Date.now()<pausedUntil) return; const sv=$('#trend'); sv.style.opacity=0; setTimeout(()=>{trendIdx=(trendIdx+1)%TREND_KEYS.length;trendKey=TREND_KEYS[trendIdx];drawTabs();drawTrend();sv.style.opacity=1;},500); }
+
+/* ---------- Co-packer bars ---------- */
+function drawCopack(){
+  const sv=$('#copack'); sv.innerHTML=''; const W=sv.clientWidth||560,H=sv.clientHeight||250; sv.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const rows=DATA.copack.map(r=>({...r,p:r.actual/r.plan*100})).sort((a,b)=>a.p-b.p);
+  const L=128,R=110,bh=(H-24)/rows.length, x=v=>L+v/100*(W-L-R);
+  rows.forEach((r,i)=>{const yy=i*bh+bh*.22, h=bh*.5, c=r.p>=90?'var(--blue)':'var(--red)';
+    const t=el('text',{x:0,y:yy+h/2+5,fill:'#e8eefc','font-size':14},sv);t.textContent=r.cp;
+    el('rect',{x:L,y:yy,width:W-L-R,height:h,rx:h/2,fill:'rgba(255,255,255,.06)'},sv);
+    const b=el('rect',{x:L,y:yy,width:x(Math.min(r.p,100))-L,height:h,rx:h/2,fill:c},sv);
+    const v=el('text',{x:W-R+10,y:yy+h/2+5,fill:r.p>=90?'#e8eefc':'#fecaca','font-size':15,'font-weight':700},sv);v.textContent=f1(r.p)+'%';
+    const g=el('text',{x:W,y:yy+h/2+5,'text-anchor':'end',fill:'var(--mut)','font-size':12},sv);g.textContent='−'+Math.round((r.plan-r.actual)/1000)+'k cs';});
+  el('line',{x1:x(90),x2:x(90),y1:0,y2:H-20,stroke:'var(--green)','stroke-dasharray':'5 4'},sv);
+  const tl=el('text',{x:x(90),y:H-4,'text-anchor':'middle',fill:'var(--green)','font-size':12},sv);tl.textContent='90% target';
+}
+
+/* ---------- Days of cover lollipop ---------- */
+function drawCover(){
+  const sv=$('#cover'); sv.innerHTML=''; const W=sv.clientWidth||560,H=sv.clientHeight||250; sv.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const rows=[...DATA.cover].sort((a,b)=>a.d-b.d), mx=Math.max(26,...rows.map(r=>r.d+2));
+  const L=92,R=40,bh=(H-24)/rows.length,x=v=>L+v/mx*(W-L-R);
+  el('rect',{x:x(12),width:x(18)-x(12),y:0,height:H-22,fill:'rgba(34,197,94,.09)',rx:6},sv);
+  [0,6,12,18,24].forEach(v=>{const t=el('text',{x:x(v),y:H-4,'text-anchor':'middle',class:'axis'},sv);t.textContent=v+'d';});
+  rows.forEach((r,i)=>{const yy=i*bh+bh/2, c=r.d<12?'var(--red)':r.d>18?'var(--amber)':'var(--green)';
+    const t=el('text',{x:0,y:yy+5,fill:'#e8eefc','font-size':14},sv);t.textContent=r.cfa;
+    el('line',{x1:L,x2:x(r.d),y1:yy,y2:yy,stroke:'rgba(255,255,255,.12)','stroke-width':2},sv);
+    el('circle',{cx:x(r.d),cy:yy,r:7,fill:c,style:'filter:drop-shadow(0 0 6px '+c+')'},sv);
+    const v=el('text',{x:x(r.d)+13,y:yy+5,fill:'#e8eefc','font-size':13,'font-weight':600},sv);v.textContent=f1(r.d);});
+}
+
+/* ---------- Exceptions (auto-scroll) + ticker ---------- */
+let exOffset=0;
+function drawExceptions(){
+  const ex=[...DATA.exceptions].sort((a,b)=>({Critical:0,High:1,Medium:2,Low:3}[a.sev]-{Critical:0,High:1,Medium:2,Low:3}[b.sev])||b.impact-a.impact);
+  const cnt=s=>ex.filter(e=>e.sev===s).length;
+  $('#chips').innerHTML=['Critical','High','Medium'].map(s=>`<span class="chip" style="color:${sevCol[s]}"><b class="num">${cnt(s)}</b>${s}</span>`).join('')+
+    `<span class="chip" style="color:var(--mut)"><b class="num">${ex.reduce((a,e)=>a+e.impact,0).toLocaleString('en-IN')}</b>cases at risk</span>`;
+  $('#exAge').textContent=`Oldest open: ${Math.max(...ex.map(e=>e.age))} days`;
+  const card=e=>`<div class="ex"><div class="bar" style="background:${sevCol[e.sev]}"></div>
+    <div><h3>${e.node} · <span style="color:${sevCol[e.sev]}">${e.stage}</span></h3><p>${e.issue}</p><p style="color:#c7d2fe">→ ${e.next} <span style="color:var(--dim)">· ${e.owner}</span></p></div>
+    <div class="meta"><b class="num">${e.impact?e.impact.toLocaleString('en-IN'):'—'}</b>cases · ${e.age}d old</div></div>`;
+  $('#exlist').innerHTML=ex.map(card).join('')+ex.map(card).join(''); // doubled for seamless loop
+  $('#tick').innerHTML=ex.map(e=>`<span><em>${e.sev.toUpperCase()}</em>${e.node}: ${e.issue} — ${e.next}</span>`).join('');
+}
+function scrollExceptions(){
+  const list=$('#exlist'); const half=list.scrollHeight/2; exOffset+=0.35; if(exOffset>=half)exOffset=0;
+  list.style.transform=`translateY(${-exOffset}px)`; requestAnimationFrame(scrollExceptions);
+}
+
+/* ---------- live data ---------- */
+async function loadData(){
+  if(CONFIG.dataUrl){
+    try{ const r=await fetch(CONFIG.dataUrl,{cache:'no-store'}); if(!r.ok)throw 0; DATA=await r.json();
+      $('#dataBadge').textContent='LIVE FEED'; $('#dataBadge').style.color='var(--green)'; $('#dataBadge').style.borderColor='rgba(34,197,94,.5)';
+    }catch(e){ $('#dataBadge').textContent='FEED OFFLINE · LAST DATA'; }
+  }else{ // demo: gentle movement so the wall looks alive
+    DATA.vehicles.forEach(v=>{ if(v.placed<v.indent&&Math.random()<.35)v.placed++; if(Math.random()<.3)v.intransit=Math.max(0,v.intransit+(Math.random()<.5?-1:1)); });
+    DATA.space.forEach(s=>{ s.used=Math.min(s.cap,Math.max(0,Math.round(s.used+(Math.random()-.5)*s.cap*.01))); });
+  }
+  renderAll();
+  $('#upd').textContent='refreshed '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+}
+function renderAll(){ drawKPIs(); drawSales(); drawVehicles(); drawRings(); drawTabs(); drawTrend(); drawCopack(); drawCover(); drawExceptions(); }
+
+/* ---------- screen fit, clock, fullscreen ---------- */
+function fit(){ const s=Math.min(innerWidth/1920,innerHeight/1080); $('#stage').style.transform=`translate(-50%,-50%) scale(${s})`; }
+function tickClock(){ const n=new Date(); $('#clk').textContent=n.toLocaleTimeString('en-IN',{hour12:false});
+  $('#dte').textContent=n.toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}); }
+addEventListener('resize',()=>{fit();drawSales();drawTrend();drawCopack();drawCover();});
+addEventListener('keydown',e=>{ if(e.key==='f'||e.key==='F'){ document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{}); }});
+addEventListener('dblclick',()=>{ if(!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{}); });
+
+fit(); tickClock(); setInterval(tickClock,1000);
+$('#rs').textContent=CONFIG.refreshSec;
+loadData(); setInterval(loadData,CONFIG.refreshSec*1000);
+setInterval(rotateTrend,CONFIG.trendRotateSec*1000);
+$('#tabs').addEventListener('click',e=>{ const t=e.target.closest('.tab'); if(!t) return;
+  pausedUntil=Date.now()+CONFIG.pauseAfterClickSec*1000; showTrend(t.dataset.k); });
+requestAnimationFrame(scrollExceptions);
+</script>
+</body>
+</html>
